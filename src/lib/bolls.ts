@@ -1,33 +1,38 @@
-// src/lib/bolls.ts
+// src/lib/bolls.ts — usa GetBible.net (https://getbible.net/v2)
 import { z } from "zod";
 import type { TranslationCode } from "@/types/bible";
 
-const BOLLS_BASE = "https://bolls.life";
+const GETBIBLE_BASE = "https://getbible.net/v2";
 
-const BollsVerseSchema = z.object({
-  pk: z.union([z.number(), z.string()]).transform((v) => Number(v)),
+/** Mapeo de nuestros códigos internos a los códigos de GetBible */
+const TRANSLATION_TO_GETBIBLE: Record<TranslationCode, string> = {
+  RV1909: "rvr1960",
+  DHH: "dhh",
+  KJV: "kjv",
+};
+
+const GetBibleVerseSchema = z.object({
   verse: z.union([z.number(), z.string()]).transform((v) => Number(v)),
   text: z.string(),
 });
-export type BollsVerse = z.infer<typeof BollsVerseSchema>;
 
-const ChapterSchema = z.array(BollsVerseSchema);
+const GetBibleChapterSchema = z.object({
+  chapter: z.number().optional(),
+  verses: z.record(z.string(), GetBibleVerseSchema),
+});
 
-// POST get-verses: cada pasaje → array de versículos
-const BatchResponseSchema = z.array(z.array(BollsVerseSchema));
+export type BollsVerse = {
+  pk?: number;
+  verse: number;
+  text: string;
+};
 
-async function fetchBolls<T>(
-  url: string,
-  schema: z.ZodType<T>,
-  options?: RequestInit,
-): Promise<T> {
-  const res = await fetch(url, options);
-  if (!res.ok) {
-    throw new Error(`Bolls.life error ${res.status}: ${res.statusText}`);
-  }
-  const json = await res.json();
-  return schema.parse(json);
-}
+export type VerseRequest = {
+  translation: TranslationCode;
+  book: number;
+  chapter: number;
+  verses: number[];
+};
 
 /** Obtiene todos los versículos de un capítulo */
 export async function getChapter(
@@ -35,10 +40,36 @@ export async function getChapter(
   book: number,
   chapter: number,
 ): Promise<BollsVerse[]> {
-  const url = `${BOLLS_BASE}/get-chapter/${translation}/${book}/${chapter}/`;
-  return fetchBolls(url, ChapterSchema, {
-    next: { revalidate: 3600 },
-  } as RequestInit);
+  const code = TRANSLATION_TO_GETBIBLE[translation];
+  const url = `${GETBIBLE_BASE}/${code}/${book}/${chapter}.json`;
+
+  const res = await fetch(url, { next: { revalidate: 3600 } } as RequestInit);
+  if (!res.ok) {
+    throw new Error(`GetBible error ${res.status}: ${res.statusText} (${url})`);
+  }
+
+  const json = await res.json();
+  const parsed = GetBibleChapterSchema.parse(json);
+
+  return Object.values(parsed.verses)
+    .map((v) => ({ verse: v.verse, text: v.text }))
+    .sort((a, b) => a.verse - b.verse);
+}
+
+/**
+ * Obtiene múltiples pasajes.
+ * GetBible no tiene endpoint batch, así que hacemos fetches paralelos
+ * y filtramos los versículos pedidos.
+ */
+export async function getVerses(requests: VerseRequest[]): Promise<BollsVerse[][]> {
+  const results = await Promise.allSettled(
+    requests.map(async (req) => {
+      const allVerses = await getChapter(req.translation, req.book, req.chapter);
+      return allVerses.filter((v) => req.verses.includes(v.verse));
+    }),
+  );
+
+  return results.map((r) => (r.status === "fulfilled" ? r.value : []));
 }
 
 /** Obtiene un único versículo */
@@ -48,47 +79,8 @@ export async function getVerse(
   chapter: number,
   verse: number,
 ): Promise<BollsVerse> {
-  const url = `${BOLLS_BASE}/get-text/${translation}/${book}/${chapter}/${verse}/`;
-  const result = await fetchBolls(url, z.array(BollsVerseSchema), {
-    next: { revalidate: 3600 },
-  } as RequestInit);
-  if (result.length === 0) throw new Error("Versículo no encontrado");
-  return result[0];
-}
-
-export type VerseRequest = {
-  translation: TranslationCode;
-  book: number;
-  chapter: number;
-  verses: number[];
-};
-
-/**
- * Obtiene múltiples pasajes en una sola request (batch).
- * Retorna array de arrays: un array por cada pasaje del input.
- */
-export async function getVerses(requests: VerseRequest[]): Promise<BollsVerse[][]> {
-  const body = requests.map((r) => ({
-    translation: r.translation,
-    book: r.book,
-    chapter: r.chapter,
-    verses: r.verses,
-  }));
-  const res = await fetch(`${BOLLS_BASE}/get-verses/`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
-    cache: "no-store",
-  });
-  if (!res.ok) {
-    throw new Error(`Bolls.life batch error ${res.status}`);
-  }
-  const json = await res.json();
-  // Intentar parsear como array de arrays; si falla, envolver en array
-  const batchResult = BatchResponseSchema.safeParse(json);
-  if (batchResult.success) return batchResult.data;
-  // Fallback: el API puede devolver un array plano
-  const flatResult = ChapterSchema.safeParse(json);
-  if (flatResult.success) return [flatResult.data];
-  throw new Error("Respuesta inesperada de Bolls.life batch");
+  const all = await getChapter(translation, book, chapter);
+  const found = all.find((v) => v.verse === verse);
+  if (!found) throw new Error("Versículo no encontrado");
+  return found;
 }

@@ -86,7 +86,7 @@ export async function searchVerses(
       : [ref.verseStart],
   }));
 
-  let batchResults: Array<Array<{ pk: number; verse: number; text: string }>>;
+  let batchResults: Array<Array<{ pk?: number; verse: number; text: string }>>;
   try {
     batchResults = await getVerses(batchRequests);
   } catch {

@@ -9,7 +9,7 @@ export type Translation = {
 };
 
 export const TRANSLATIONS: Record<TranslationCode, Translation> = {
-  RV1909: { code: "RV1909", name: "Reina-Valera 1909", lang: "es", label: "Español (antigua)" },
+  RV1909: { code: "RV1909", name: "Reina-Valera 1960", lang: "es", label: "Español (clásica)" },
   DHH:    { code: "DHH",    name: "Dios Habla Hoy",    lang: "es", label: "Español (pastoral)" },
   KJV:    { code: "KJV",    name: "King James Version", lang: "en", label: "Inglés (clásica)" },
 } as const;

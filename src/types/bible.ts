@@ -2,9 +2,9 @@
 
 export type TranslationCode = "RV1909" | "DHH" | "KJV";
 
-/** Versículo crudo de Bolls.life */
+/** Versículo crudo de la API de Biblia */
 export interface BollsVerse {
-  pk: number;
+  pk?: number;
   verse: number;
   text: string;
 }
