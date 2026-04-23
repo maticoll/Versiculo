@@ -5,8 +5,8 @@ import type { TranslationCode } from "@/types/bible";
 const BOLLS_BASE = "https://bolls.life";
 
 const BollsVerseSchema = z.object({
-  pk: z.number(),
-  verse: z.number(),
+  pk: z.union([z.number(), z.string()]).transform((v) => Number(v)),
+  verse: z.union([z.number(), z.string()]).transform((v) => Number(v)),
   text: z.string(),
 });
 export type BollsVerse = z.infer<typeof BollsVerseSchema>;

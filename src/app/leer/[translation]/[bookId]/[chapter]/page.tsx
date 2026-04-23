@@ -31,13 +31,28 @@ export default async function ChapterPage({ params }: { params: Params }) {
   const book = bookById(bookId);
   if (!book || chapter > book.chapters) notFound();
 
-  const verses = await getChapter(
-    translation as TranslationCode,
-    bookId,
-    chapter
-  );
+  let verses: import("@/types/bible").BollsVerse[] = [];
+  let apiError: string | null = null;
 
-  if (!verses || verses.length === 0) notFound();
+  try {
+    verses = await getChapter(translation as TranslationCode, bookId, chapter);
+    if (verses.length === 0) {
+      apiError = `No se encontró el texto para ${book.name} ${chapter} en la traducción ${translation}. Probá con otra traducción.`;
+      console.error(`[Bolls.life] Respuesta vacía para ${translation}/${bookId}/${chapter}`);
+    }
+  } catch (err) {
+    console.error(`[Bolls.life] Error al obtener ${translation}/${bookId}/${chapter}:`, err);
+    apiError = "No se pudo cargar el capítulo. Verificá tu conexión o intentá de nuevo.";
+  }
+
+  if (apiError) {
+    return (
+      <div className="mx-auto max-w-2xl space-y-4 py-16 text-center">
+        <p className="text-lg font-semibold">No disponible</p>
+        <p className="text-muted-foreground">{apiError}</p>
+      </div>
+    );
+  }
 
   return (
     <BibleNavigator
