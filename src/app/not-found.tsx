@@ -4,13 +4,13 @@ import { BookOpen } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { getDailyVerse } from "@/lib/daily-verse-selector";
 import { getChapter } from "@/lib/bolls";
-import { bookById, formatReference } from "@/lib/books";
+import { formatReference } from "@/lib/books";
 import { DEFAULT_TRANSLATION } from "@/lib/translations";
 
-export default async function NotFound() {
-  let verseBlock: React.ReactNode = null;
+type VerseData = { text: string; reference: string } | null;
+
+async function fetchNotFoundVerse(): Promise<VerseData> {
   try {
-    // Use date +7 days offset for a different verse than the daily one
     const offsetDate = new Date();
     offsetDate.setDate(offsetDate.getDate() + 7);
     const ref = getDailyVerse(offsetDate);
@@ -24,17 +24,14 @@ export default async function NotFound() {
       verseStart: ref.verseStart,
       verseEnd: ref.verseEnd ?? null,
     });
-    if (text) {
-      verseBlock = (
-        <blockquote className="max-w-md rounded-lg border border-[var(--accent-bible)]/30 bg-[var(--accent-bible)]/5 p-4 text-left">
-          <p className="font-serif text-base leading-relaxed">{text}</p>
-          <footer className="mt-2 text-xs text-[var(--accent-bible)]">{reference}</footer>
-        </blockquote>
-      );
-    }
+    return text ? { text, reference } : null;
   } catch {
-    // if API fails, show 404 without verse
+    return null;
   }
+}
+
+export default async function NotFound() {
+  const verseData = await fetchNotFoundVerse();
 
   return (
     <div className="flex flex-col items-center justify-center gap-6 py-24 text-center">
@@ -45,7 +42,12 @@ export default async function NotFound() {
           Esta ruta no existe. Volvé al inicio y buscá lo que necesitás.
         </p>
       </div>
-      {verseBlock}
+      {verseData && (
+        <blockquote className="max-w-md rounded-lg border border-[var(--accent-bible)]/30 bg-[var(--accent-bible)]/5 p-4 text-left">
+          <p className="font-serif text-base leading-relaxed">{verseData.text}</p>
+          <footer className="mt-2 text-xs text-[var(--accent-bible)]">{verseData.reference}</footer>
+        </blockquote>
+      )}
       <Button render={<Link href="/" />}>
         Volver al inicio
       </Button>

@@ -1,7 +1,7 @@
 // src/hooks/use-favorites.ts
 "use client";
 
-import { useState, useEffect } from "react";
+import { useSyncExternalStore } from "react";
 import type { FavoriteItem } from "@/types/bible";
 
 const STORAGE_KEY = "versiculo:favorites:v1";
@@ -22,40 +22,47 @@ function saveFavorites(items: FavoriteItem[]) {
   } catch {}
 }
 
+// Dispatch a custom event so all hook instances re-read storage
+function notifyFavoritesChange() {
+  window.dispatchEvent(new StorageEvent("storage", { key: STORAGE_KEY }));
+}
+
+function subscribe(callback: () => void) {
+  function onStorage(e: StorageEvent) {
+    if (e.key === STORAGE_KEY) callback();
+  }
+  window.addEventListener("storage", onStorage);
+  return () => window.removeEventListener("storage", onStorage);
+}
+
+function getSnapshot(): FavoriteItem[] {
+  return loadFavorites();
+}
+
+function getServerSnapshot(): FavoriteItem[] {
+  return [];
+}
+
 export function useFavorites() {
-  const [favorites, setFavorites] = useState<FavoriteItem[]>([]);
-
-  useEffect(() => {
-    setFavorites(loadFavorites());
-
-    function onStorage(e: StorageEvent) {
-      if (e.key === STORAGE_KEY) {
-        setFavorites(loadFavorites());
-      }
-    }
-    window.addEventListener("storage", onStorage);
-    return () => window.removeEventListener("storage", onStorage);
-  }, []);
+  const favorites = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
 
   function add(item: FavoriteItem) {
-    setFavorites((prev) => {
-      if (prev.some((f) => f.reference === item.reference && f.translationCode === item.translationCode)) {
-        return prev;
-      }
-      const next = [item, ...prev];
-      saveFavorites(next);
-      return next;
-    });
+    const prev = loadFavorites();
+    if (prev.some((f) => f.reference === item.reference && f.translationCode === item.translationCode)) {
+      return;
+    }
+    saveFavorites([item, ...prev]);
+    notifyFavoritesChange();
   }
 
   function remove(reference: string, translationCode: string) {
-    setFavorites((prev) => {
-      const next = prev.filter(
+    const prev = loadFavorites();
+    saveFavorites(
+      prev.filter(
         (f) => !(f.reference === reference && f.translationCode === translationCode),
-      );
-      saveFavorites(next);
-      return next;
-    });
+      ),
+    );
+    notifyFavoritesChange();
   }
 
   function has(reference: string, translationCode: string): boolean {
@@ -65,8 +72,8 @@ export function useFavorites() {
   }
 
   function clear() {
-    setFavorites([]);
     saveFavorites([]);
+    notifyFavoritesChange();
   }
 
   return { favorites, add, remove, has, clear };

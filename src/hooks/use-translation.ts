@@ -1,7 +1,7 @@
 // src/hooks/use-translation.ts
 "use client";
 
-import { useState, useEffect } from "react";
+import { useCallback, useSyncExternalStore } from "react";
 import { DEFAULT_TRANSLATION, TRANSLATION_CODES } from "@/lib/translations";
 import type { TranslationCode } from "@/types/bible";
 
@@ -18,19 +18,28 @@ function loadTranslation(): TranslationCode {
   return DEFAULT_TRANSLATION;
 }
 
+function subscribe(callback: () => void) {
+  function onStorage(e: StorageEvent) {
+    if (e.key === STORAGE_KEY) callback();
+  }
+  window.addEventListener("storage", onStorage);
+  return () => window.removeEventListener("storage", onStorage);
+}
+
 export function useTranslation() {
-  const [translation, setTranslationState] = useState<TranslationCode>(DEFAULT_TRANSLATION);
+  const translation = useSyncExternalStore(
+    subscribe,
+    loadTranslation,
+    () => DEFAULT_TRANSLATION,
+  );
 
-  useEffect(() => {
-    setTranslationState(loadTranslation());
-  }, []);
-
-  function setTranslation(code: TranslationCode) {
-    setTranslationState(code);
+  const setTranslation = useCallback((code: TranslationCode) => {
     try {
       localStorage.setItem(STORAGE_KEY, code);
     } catch {}
-  }
+    // Notify same-tab listeners
+    window.dispatchEvent(new StorageEvent("storage", { key: STORAGE_KEY }));
+  }, []);
 
   return { translation, setTranslation };
 }

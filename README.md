@@ -1,36 +1,51 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Versículo
 
-## Getting Started
+App web de búsqueda semántica de versículos bíblicos. Describís una situación o emoción y la app te muestra los versículos más relevantes.
 
-First, run the development server:
+## Stack
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+- Next.js 16+ (App Router)
+- TypeScript strict
+- Tailwind CSS + shadcn/ui
+- OpenAI (gpt-4o-mini) para búsqueda semántica
+- [Bolls.life](https://bolls.life) como fuente de texto bíblico (gratuita)
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Setup local
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+1. Clonar el repo e instalar dependencias:
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+   ```bash
+   npm install
+   ```
 
-## Learn More
+2. Copiar el archivo de ejemplo y completarlo:
 
-To learn more about Next.js, take a look at the following resources:
+   ```bash
+   cp .env.local.example .env.local
+   ```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+   Abrí `.env.local` y completá:
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+   ```
+   OPENAI_API_KEY=sk-...        # Obtené tu key en https://platform.openai.com/api-keys
+   OPENAI_MODEL=gpt-4o-mini     # Opcional, este es el default
+   ```
 
-## Deploy on Vercel
+3. Correr en modo desarrollo:
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+   ```bash
+   npm run dev
+   ```
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+   Abrí [http://localhost:3000](http://localhost:3000).
+
+## Deploy en Vercel
+
+1. Subí el código a un repositorio de GitHub.
+2. Conectá el repo en [vercel.com](https://vercel.com).
+3. En **Settings > Environment Variables**, agregá `OPENAI_API_KEY` con tu key.
+4. Deploy automático en cada push a `main`.
+
+## Créditos
+
+Texto bíblico provisto por [Bolls.life](https://bolls.life) — API gratuita sin registro.
