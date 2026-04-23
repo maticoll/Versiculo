@@ -25,8 +25,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           </main>
           <footer className="mt-16 border-t py-6 text-center text-xs text-muted-foreground">
             Texto bíblico provisto por{" "}
-            <a href="https://bolls.life" target="_blank" rel="noopener noreferrer" className="underline underline-offset-2">
-              Bolls.life
+            <a href="https://getbible.net" target="_blank" rel="noopener noreferrer" className="underline underline-offset-2">
+              GetBible.net
             </a>
           </footer>
           <Toaster richColors />

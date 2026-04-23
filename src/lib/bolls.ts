@@ -2,7 +2,8 @@
 import { z } from "zod";
 import type { TranslationCode } from "@/types/bible";
 
-const GETBIBLE_BASE = "https://getbible.net/v2";
+// Usar gatekeeper directamente para evitar el redirect 301
+const GETBIBLE_BASE = "https://gatekeeper.getbible.life/v2";
 
 /** Mapeo de nuestros códigos internos a los códigos de GetBible */
 const TRANSLATION_TO_GETBIBLE: Record<TranslationCode, string> = {
@@ -46,6 +47,11 @@ export async function getChapter(
   const res = await fetch(url, { next: { revalidate: 3600 } } as RequestInit);
   if (!res.ok) {
     throw new Error(`GetBible error ${res.status}: ${res.statusText} (${url})`);
+  }
+
+  const contentType = res.headers.get("content-type") ?? "";
+  if (!contentType.includes("application/json")) {
+    throw new Error(`GetBible devolvió respuesta no-JSON (${contentType}). El servicio puede estar caído.`);
   }
 
   const json = await res.json();
