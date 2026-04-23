@@ -1,6 +1,6 @@
 // src/types/bible.ts
 
-export type TranslationCode = "RV1909" | "DHH" | "KJV";
+export type TranslationCode = "RV1909" | "KJV";
 
 /** Versículo crudo de la API de Biblia */
 export interface BollsVerse {

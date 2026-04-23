@@ -1,32 +1,12 @@
-// src/lib/bolls.ts — usa GetBible.net (https://getbible.net/v2)
-import { z } from "zod";
+// src/lib/bolls.ts — lee Biblia desde archivos JSON locales (sin API externa)
 import type { TranslationCode } from "@/types/bible";
+import {
+  getChapterLocal,
+  getVersesLocal,
+  type LocalVerse,
+} from "@/lib/local-bible";
 
-// Usar gatekeeper directamente para evitar el redirect 301
-const GETBIBLE_BASE = "https://gatekeeper.getbible.life/v2";
-
-/** Mapeo de nuestros códigos internos a los códigos de GetBible */
-const TRANSLATION_TO_GETBIBLE: Record<TranslationCode, string> = {
-  RV1909: "rvr1960",
-  DHH: "dhh",
-  KJV: "kjv",
-};
-
-const GetBibleVerseSchema = z.object({
-  verse: z.union([z.number(), z.string()]).transform((v) => Number(v)),
-  text: z.string(),
-});
-
-const GetBibleChapterSchema = z.object({
-  chapter: z.number().optional(),
-  verses: z.record(z.string(), GetBibleVerseSchema),
-});
-
-export type BollsVerse = {
-  pk?: number;
-  verse: number;
-  text: string;
-};
+export type BollsVerse = LocalVerse & { pk?: number };
 
 export type VerseRequest = {
   translation: TranslationCode;
@@ -41,41 +21,7 @@ export async function getChapter(
   book: number,
   chapter: number,
 ): Promise<BollsVerse[]> {
-  const code = TRANSLATION_TO_GETBIBLE[translation];
-  const url = `${GETBIBLE_BASE}/${code}/${book}/${chapter}.json`;
-
-  const res = await fetch(url, { next: { revalidate: 3600 } } as RequestInit);
-  if (!res.ok) {
-    throw new Error(`GetBible error ${res.status}: ${res.statusText} (${url})`);
-  }
-
-  const contentType = res.headers.get("content-type") ?? "";
-  if (!contentType.includes("application/json")) {
-    throw new Error(`GetBible devolvió respuesta no-JSON (${contentType}). El servicio puede estar caído.`);
-  }
-
-  const json = await res.json();
-  const parsed = GetBibleChapterSchema.parse(json);
-
-  return Object.values(parsed.verses)
-    .map((v) => ({ verse: v.verse, text: v.text }))
-    .sort((a, b) => a.verse - b.verse);
-}
-
-/**
- * Obtiene múltiples pasajes.
- * GetBible no tiene endpoint batch, así que hacemos fetches paralelos
- * y filtramos los versículos pedidos.
- */
-export async function getVerses(requests: VerseRequest[]): Promise<BollsVerse[][]> {
-  const results = await Promise.allSettled(
-    requests.map(async (req) => {
-      const allVerses = await getChapter(req.translation, req.book, req.chapter);
-      return allVerses.filter((v) => req.verses.includes(v.verse));
-    }),
-  );
-
-  return results.map((r) => (r.status === "fulfilled" ? r.value : []));
+  return getChapterLocal(translation, book, chapter);
 }
 
 /** Obtiene un único versículo */
@@ -85,8 +31,19 @@ export async function getVerse(
   chapter: number,
   verse: number,
 ): Promise<BollsVerse> {
-  const all = await getChapter(translation, book, chapter);
-  const found = all.find((v) => v.verse === verse);
-  if (!found) throw new Error("Versículo no encontrado");
-  return found;
+  const results = getVersesLocal(translation, book, chapter, [verse]);
+  if (results.length === 0) throw new Error("Versículo no encontrado");
+  return results[0];
+}
+
+/**
+ * Obtiene múltiples pasajes en paralelo.
+ * Retorna array de arrays: un array por cada pasaje del input.
+ */
+export async function getVerses(
+  requests: VerseRequest[],
+): Promise<BollsVerse[][]> {
+  return requests.map((req) =>
+    getVersesLocal(req.translation, req.book, req.chapter, req.verses),
+  );
 }

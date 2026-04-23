@@ -1,7 +1,10 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  // Incluir los JSON de la Biblia en el output de Vercel
+  outputFileTracingIncludes: {
+    "/**": ["./src/data/bible/*.json"],
+  },
 };
 
 export default nextConfig;

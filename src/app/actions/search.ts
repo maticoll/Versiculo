@@ -9,7 +9,7 @@ import type { BibleVerse, TranslationCode } from "@/types/bible";
 
 const QuerySchema = z.object({
   query: z.string().min(3).max(300),
-  translation: z.enum(["RV1909", "DHH", "KJV"] as const),
+  translation: z.enum(["RV1909", "KJV"] as const),
 });
 
 const ReferenceSchema = z.object({
