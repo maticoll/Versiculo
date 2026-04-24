@@ -35,8 +35,22 @@ function subscribe(callback: () => void) {
   return () => window.removeEventListener("storage", onStorage);
 }
 
+// Caché estable: useSyncExternalStore exige que getSnapshot devuelva
+// la misma referencia si los datos no cambiaron, o entrará en loop infinito.
+let _cachedStr: string | null = undefined as unknown as null;
+let _cachedFavorites: FavoriteItem[] = [];
+
 function getSnapshot(): FavoriteItem[] {
-  return loadFavorites();
+  if (typeof window === "undefined") return [];
+  const raw = localStorage.getItem(STORAGE_KEY);
+  if (raw === _cachedStr) return _cachedFavorites;
+  _cachedStr = raw;
+  try {
+    _cachedFavorites = raw ? (JSON.parse(raw) as FavoriteItem[]) : [];
+  } catch {
+    _cachedFavorites = [];
+  }
+  return _cachedFavorites;
 }
 
 function getServerSnapshot(): FavoriteItem[] {
